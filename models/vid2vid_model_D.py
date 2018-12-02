@@ -151,8 +151,12 @@ class Vid2VidModelD(BaseModel):
         if scale_T > 0:
             real_B, fake_B, flow_ref, conf_ref = tensors_list
             _, _, _, self.height, self.width = real_B.size()
-            loss_D_T_real, loss_D_T_fake, loss_G_T_GAN, loss_G_T_GAN_Feat = self.compute_loss_D_T(real_B, fake_B, 
-                flow_ref/20, conf_ref, scale_T-1)            
+            if flow_ref is not None:
+                loss_D_T_real, loss_D_T_fake, loss_G_T_GAN, loss_G_T_GAN_Feat = self.compute_loss_D_T(real_B, fake_B, 
+                    flow_ref/20, conf_ref, scale_T-1)
+            else:
+                loss_D_T_real, loss_D_T_fake, loss_G_T_GAN, loss_G_T_GAN_Feat = self.compute_loss_D_T(real_B, fake_B, 
+                    None, conf_ref, scale_T-1)
             loss_G_T_Warp = torch.zeros_like(loss_G_T_GAN)
 
             loss_list = [loss_G_T_GAN, loss_G_T_GAN_Feat, loss_D_T_real, loss_D_T_fake, loss_G_T_Warp]
