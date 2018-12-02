@@ -109,6 +109,8 @@ def train():
                 ### individual frame discriminator
                 if not opt.no_flow:
                     flow_ref, conf_ref = flowNet(real_B, real_B_prev)  # reference flows and confidences
+                else:
+                    flow_ref = None
                 fake_B_prev = real_B_prev[:, 0:1] if fake_B_last is None else fake_B_last[0][:, -1:]
                 if fake_B.size()[1] > 1:
                     fake_B_prev = torch.cat([fake_B_prev, fake_B[:, :-1].detach()], dim=1)
