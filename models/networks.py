@@ -31,7 +31,7 @@ def get_norm_layer(norm_type='instance'):
         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
 
-def define_G(input_nc, output_nc, prev_output_nc, ngf, which_model_netG, n_downsampling, norm, scale, gpu_ids=[], opt=[]):
+def define_G(input_nc, output_nc, prev_output_nc, ngf, which_model_netG, n_downsampling, norm, scale, gpu_ids=[], opt=[], indv_input_nc=None):
     netG = None    
     norm_layer = get_norm_layer(norm_type=norm)
 
@@ -45,7 +45,7 @@ def define_G(input_nc, output_nc, prev_output_nc, ngf, which_model_netG, n_downs
         netG = Local_with_z(input_nc, output_nc, opt.feat_num, ngf, n_downsampling, opt.n_blocks, opt.n_local_enhancers, opt.n_blocks_local, norm_layer)
 
     elif which_model_netG == 'composite':
-        netG = CompositeGenerator(input_nc, output_nc, prev_output_nc, ngf, n_downsampling, opt.n_blocks, opt.fg, opt.no_flow, norm_layer)
+        netG = CompositeGenerator(input_nc, output_nc, prev_output_nc, ngf, n_downsampling, opt.n_blocks, opt.fg, opt.no_flow, norm_layer, indv_input_nc=indv_input_nc)
     elif which_model_netG == 'compositeLocal':
         netG = CompositeLocalGenerator(input_nc, output_nc, prev_output_nc, ngf, n_downsampling, opt.n_blocks_local, opt.fg, opt.no_flow, 
                                        norm_layer, scale=scale)    
@@ -83,7 +83,7 @@ def print_network(net):
 ##############################################################################
 class CompositeGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, prev_output_nc, ngf, n_downsampling, n_blocks, use_fg_model=False, no_flow=False,
-                norm_layer=nn.BatchNorm2d, padding_type='reflect'):
+                norm_layer=nn.BatchNorm2d, padding_type='reflect', indv_input_nc=None):
         assert(n_blocks >= 0)
         super(CompositeGenerator, self).__init__()        
         self.resample = Resample2d()
@@ -91,6 +91,9 @@ class CompositeGenerator(nn.Module):
         self.use_fg_model = use_fg_model
         self.no_flow = no_flow
         activation = nn.ReLU(True)
+
+        assert indv_input_nc == output_nc, "input_nc %d: output_nc %d" % (indv_input_nc, output_nc)
+        self.indv_input_nc = self.output_nc = indv_input_nc
         
         if use_fg_model:
             ### individial image generation
@@ -196,7 +199,7 @@ class CompositeGenerator(nn.Module):
             img_final = img_fg * mask + img_final * (1-mask) 
             img_raw = img_fg * mask + img_raw * (1-mask)                 
 
-        return img_final, flow, weight, img_raw, img_feat, flow_feat, img_fg_feat
+        return (input[:, :self.indv_input_nc, ...] + img_final), flow, weight, img_raw, img_feat, flow_feat, img_fg_feat
 
 class CompositeLocalGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, prev_output_nc, ngf, n_downsampling, n_blocks_local, use_fg_model=False, no_flow=False,

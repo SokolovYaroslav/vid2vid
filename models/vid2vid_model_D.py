@@ -10,6 +10,7 @@ import util.util as util
 from .base_model import BaseModel
 from . import networks
 from .flownet2_pytorch.networks.resample2d_package.resample2d import Resample2d
+from torch.nn.modules.loss import MSELoss
 
 class Vid2VidModelD(BaseModel):
     def name(self):
@@ -70,10 +71,24 @@ class Vid2VidModelD(BaseModel):
         if not opt.no_vgg:
             self.criterionVGG = networks.VGGLoss(self.gpu_ids[0])
 
-        self.loss_names = ['G_VGG', 'G_GAN', 'G_GAN_Feat',                            
-                           'D_real', 'D_fake',
-                           'G_Warp', 'F_Flow', 'F_Warp', 'W']                
-        self.loss_names_T = ['G_T_GAN', 'G_T_GAN_Feat', 'D_T_real', 'D_T_fake', 'G_T_Warp']     
+        self.loss_names = [
+                           'G_VGG', 
+                           'G_GAN', 
+                           'G_GAN_Feat',                            
+                           'D_real', 
+                           'D_fake',
+                           'G_Warp', 
+                           'F_Flow', 
+                           'F_Warp', 
+                           'W',
+                           ]                
+        self.loss_names_T = [
+                             'G_T_GAN', 
+                             'G_T_GAN_Feat', 
+                             'D_T_real', 
+                             'D_T_fake', 
+                             'G_T_Warp',
+                            ]     
         if opt.add_face_disc:
             self.loss_names += ['G_f_GAN', 'G_f_GAN_Feat', 'D_f_real', 'D_f_fake']
 
@@ -155,7 +170,13 @@ class Vid2VidModelD(BaseModel):
                 flow_ref/20, conf_ref, scale_T-1)            
             loss_G_T_Warp = torch.zeros_like(loss_G_T_GAN)
 
-            loss_list = [loss_G_T_GAN, loss_G_T_GAN_Feat, loss_D_T_real, loss_D_T_fake, loss_G_T_Warp]
+            loss_list = [
+                         loss_G_T_GAN, 
+                         loss_G_T_GAN_Feat, 
+                         loss_D_T_real, 
+                         loss_D_T_fake, 
+                         loss_G_T_Warp,
+                        ]
             loss_list = [loss.unsqueeze(0) for loss in loss_list]
             return loss_list            
 
@@ -180,19 +201,19 @@ class Vid2VidModelD(BaseModel):
             loss_F_Flow = loss_F_Warp = loss_W = torch.zeros_like(conf_ref)
 
         #################### fake_B loss ####################        
-        ### VGG + GAN loss 
-        loss_G_VGG = (self.criterionVGG(fake_B, real_B) * lambda_feat) if not self.opt.no_vgg else torch.zeros_like(loss_W)
+        ### VGG + GAN loss
+        loss_G_VGG = (self.criterionVGG(fake_B[:, :3, ...], real_B[:, :3, ...]) * lambda_feat) if not self.opt.no_vgg else torch.zeros_like(loss_W)
         loss_D_real, loss_D_fake, loss_G_GAN, loss_G_GAN_Feat = self.compute_loss_D(self.netD, real_A, real_B, fake_B)
         ### Warp loss
         fake_B_warp_ref = self.resample(fake_B_prev, flow_ref)
         loss_G_Warp = self.criterionWarp(fake_B, fake_B_warp_ref.detach(), conf_ref) * lambda_T
         
-        if fake_B_raw is not None:
-            if not self.opt.no_vgg:
-                loss_G_VGG += self.criterionVGG(fake_B_raw, real_B) * lambda_feat        
-            l_D_real, l_D_fake, l_G_GAN, l_G_GAN_Feat = self.compute_loss_D(self.netD, real_A, real_B, fake_B_raw)        
-            loss_G_GAN += l_G_GAN; loss_G_GAN_Feat += l_G_GAN_Feat
-            loss_D_real += l_D_real; loss_D_fake += l_D_fake
+        # if fake_B_raw is not None:
+        #     if not self.opt.no_vgg:
+        #         loss_G_VGG += self.criterionVGG(fake_B_raw[:, :3, ...], real_B[:, :3, ...]) * lambda_feat        
+        #     l_D_real, l_D_fake, l_G_GAN, l_G_GAN_Feat = self.compute_loss_D(self.netD, real_A, real_B, fake_B_raw)        
+        #     loss_G_GAN += l_G_GAN; loss_G_GAN_Feat += l_G_GAN_Feat
+        #     loss_D_real += l_D_real; loss_D_fake += l_D_fake
 
         if self.opt.add_face_disc:
             face_weight = 2
@@ -205,9 +226,20 @@ class Vid2VidModelD(BaseModel):
             else:
                 loss_D_f_real = loss_D_f_fake = loss_G_f_GAN = loss_G_f_GAN_Feat = torch.zeros_like(loss_D_real)
 
-        loss_list = [loss_G_VGG, loss_G_GAN, loss_G_GAN_Feat,
-                     loss_D_real, loss_D_fake, 
-                     loss_G_Warp, loss_F_Flow, loss_F_Warp, loss_W]
+        # mse = (real_B - fake_B) ** 2 / real_B.size(0)
+
+        loss_list = [
+                     loss_G_VGG, 
+                     loss_G_GAN, 
+                     loss_G_GAN_Feat,
+                     loss_D_real, 
+                     loss_D_fake, 
+                     loss_G_Warp, 
+                     loss_F_Flow, 
+                     loss_F_Warp, 
+                     loss_W,
+                    #  mse
+                     ]
         if self.opt.add_face_disc:
             loss_list += [loss_G_f_GAN, loss_G_f_GAN_Feat, loss_D_f_real, loss_D_f_fake]   
         loss_list = [loss.unsqueeze(0) for loss in loss_list]           

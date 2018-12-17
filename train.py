@@ -107,7 +107,7 @@ def train():
 
                 ####### discriminator            
                 ### individual frame discriminator          
-                flow_ref, conf_ref = flowNet(real_B, real_B_prev)  # reference flows and confidences
+                flow_ref, conf_ref = flowNet(real_B[:, :, :3, ...], real_B_prev[:, :, :3, ...])  # reference flows and confidences
                 fake_B_prev = real_B_prev[:, 0:1] if fake_B_last is None else fake_B_last[0][:, -1:]
                 if fake_B.size()[1] > 1:
                     fake_B_prev = torch.cat([fake_B_prev, fake_B[:, :-1].detach()], dim=1)
@@ -201,7 +201,7 @@ def train():
                     if ys is not None:
                         input_image[ys, xs:xe, :] = input_image[ye, xs:xe, :] = input_image[ys:ye, xs, :] = input_image[ys:ye, xe, :] = 255 
 
-                visual_list = [('input_image', input_image),
+                visual_list = [('input_image', util.tensor2im(real_A[0, -1])),
                                ('fake_image', util.tensor2im(fake_B[0, -1])),
                                ('fake_first_image', util.tensor2im(fake_B_first)),
                                ('fake_raw_image', util.tensor2im(fake_B_raw[0, -1])),
@@ -288,7 +288,7 @@ def get_skipped_flows(flowNet, flow_ref_all, conf_ref_all, real_B, flow_ref, con
 
     for s in range(1, t_scales):        
         if real_B[s] is not None and real_B[s].size()[1] == tD:
-            flow_ref_skipped[s], conf_ref_skipped[s] = flowNet(real_B[s][:,1:], real_B[s][:,:-1])
+            flow_ref_skipped[s], conf_ref_skipped[s] = flowNet(real_B[s][:,1:,:3], real_B[s][:,:-1,:3])
     return flow_ref_all, conf_ref_all, flow_ref_skipped, conf_ref_skipped
 
 if __name__ == "__main__":

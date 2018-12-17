@@ -36,7 +36,7 @@ class Vid2VidModelG(BaseModel):
             opt.no_flow = True     
 
         self.netG0 = networks.define_G(netG_input_nc, opt.output_nc, prev_output_nc, opt.ngf, opt.netG, 
-                                       opt.n_downsample_G, opt.norm, 0, self.gpu_ids, opt)
+                                       opt.n_downsample_G, opt.norm, 0, self.gpu_ids, opt, opt.input_nc)
         for s in range(1, self.n_scales):            
             ngf = opt.ngf // (2**s)
             setattr(self, 'netG'+str(s), networks.define_G(netG_input_nc, opt.output_nc, prev_output_nc, ngf, opt.netG+'Local', 

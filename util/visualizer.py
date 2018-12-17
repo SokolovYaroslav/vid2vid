@@ -36,6 +36,7 @@ class Visualizer():
 
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch, step):
+        epoch = int(step)
         if self.tf_log: # show images in tensorboard output
             img_summaries = []
             for label, image_numpy in visuals.items():
@@ -44,7 +45,7 @@ class Visualizer():
                     s = StringIO()
                 except:
                     s = BytesIO()
-                scipy.misc.toimage(image_numpy).save(s, format="jpeg")
+                scipy.misc.toimage(image_numpy).save(s, format="png")
                 # Create an Image object
                 img_sum = self.tf.Summary.Image(encoded_image_string=s.getvalue(), height=image_numpy.shape[0], width=image_numpy.shape[1])
                 # Create a Summary value
@@ -58,16 +59,16 @@ class Visualizer():
             for label, image_numpy in visuals.items():
                 if isinstance(image_numpy, list):
                     for i in range(len(image_numpy)):
-                        img_path = os.path.join(self.img_dir, 'epoch%.3d_%s_%d.jpg' % (epoch, label, i))
+                        img_path = os.path.join(self.img_dir, 'epoch%.4d_%s_%d.png' % (epoch, label, i))
                         util.save_image(image_numpy[i], img_path)
                 else:
-                    img_path = os.path.join(self.img_dir, 'epoch%.3d_%s.jpg' % (epoch, label))
+                    img_path = os.path.join(self.img_dir, 'epoch%.4d_%s.png' % (epoch, label))
                     util.save_image(image_numpy, img_path)
 
             # update website
-            webpage = html.HTML(self.web_dir, 'Experiment name = %s' % self.name, reflesh=1)
+            webpage = html.HTML(self.web_dir, '%s' % self.name, reflesh=1)
             for n in range(epoch, 0, -1):
-                webpage.add_header('epoch [%d]' % n)
+                webpage.add_header('step [%d]' % n)
                 ims = []
                 txts = []
                 links = []
@@ -75,17 +76,18 @@ class Visualizer():
                 for label, image_numpy in visuals.items():
                     if isinstance(image_numpy, list):
                         for i in range(len(image_numpy)):
-                            img_path = 'epoch%.3d_%s_%d.jpg' % (n, label, i)
+                            img_path = 'epoch%.4d_%s_%d.png' % (n, label, i)
                             ims.append(img_path)
                             txts.append(label+str(i))
                             links.append(img_path)
                     else:
-                        img_path = 'epoch%.3d_%s.jpg' % (n, label)
+                        img_path = 'epoch%.4d_%s.png' % (n, label)
                         ims.append(img_path)
                         txts.append(label)
                         links.append(img_path)
-                if len(ims) < 6:
-                    webpage.add_images(ims, txts, links, width=self.win_size)
+                if len(ims) < 10:
+                    indexes = [0, 3, 1, 4, 2, 5, 6]
+                    webpage.add_images([ims[i] for i in indexes], [txts[i] for i in indexes], [links[i] for i in indexes], width=self.win_size)
                 else:
                     num = int(round(len(ims)/2.0))
                     webpage.add_images(ims[:num], txts[:num], links[:num], width=self.win_size)
@@ -123,7 +125,7 @@ class Visualizer():
             ims, txts, links = [], [], []         
 
         for label, image_numpy in visuals.items():
-            save_ext = 'png' if 'real_A' in label and self.opt.label_nc != 0 else 'jpg'
+            save_ext = 'png' if 'real_A' in label and self.opt.label_nc != 0 else 'png'
             image_name = '%s_%s.%s' % (label, name, save_ext)
             save_path = os.path.join(image_dir, image_name)
             util.save_image(image_numpy, save_path)
